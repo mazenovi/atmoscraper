@@ -102,17 +102,45 @@ function formatLinks(links) {
     casper.echo(serialized);
 }
 
+// Retrieve data's title per column from current page
+function getTableTitles() {
+    var row = [];
+    ths = document.querySelectorAll("table.table-mesures-par-station thead tr th");
+    [].forEach.call(ths, function(th) {
+        row.push(th.textContent); 
+    });   
+    return row;
+}
+
+// Retrieve data per column from current page
+function getTableData() {
+    var data = [];
+    trs = document.querySelectorAll("table.table-mesures-par-station tbody tr");
+    [].forEach.call(trs, function(tr) {
+        var row = [];
+        tds = tr.getElementsByTagName('td');
+        [].forEach.call(tds, function(td) {
+            row.push(td.textContent); 
+        });
+        data.push(row);
+    });   
+    return data;
+}
+
 // handle page crawling
 var processPage = function() {
     // emulate a user looking at results with a random time
     var waitTime = wait + (Math.random() * 3);
     this.echo('Will wait for ' + Math.floor(waitTime))
         .wait(waitTime * 1000);
+    
     // capturing current page
     this.echo('Page title is: ' + this.evaluate(function() {
         return document.title;
     }), 'INFO');
     this.echo('Page url is: ' + this.getCurrentUrl(), 'INFO');
+    this.echo('title: ' + JSON.stringify(this.evaluate(getTableTitles)), 'INFO');
+    this.echo('data: ' + JSON.stringify(this.evaluate(getTableData)), 'INFO');
     
     url = this.getCurrentUrl();
 
