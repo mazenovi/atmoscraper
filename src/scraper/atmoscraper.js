@@ -12,7 +12,6 @@
  *
  * (all arguments will be used as the query)
  */
-var links = [];
 
 var casper = require("casper").create({
     waitTimeout: 1000,
@@ -22,11 +21,16 @@ var casper = require("casper").create({
     }
 });
 
-var genericUrl = "http://www.atmoauvergne.asso.fr/fr/mesures/mesures-automatiques-par-station?mesauv_station=034&mesauv_date[date]=#date#&op=Rechercher";
-
-var startingYear = 2012;
+var url = "http://www.atmoauvergne.asso.fr/fr/mesures/mesures-automatiques-par-station";
 
 var wait = 1;
+
+var currentPage = 1;
+
+var currentDay = new Date();
+
+// Number of page to crawl
+var limit = casper.cli.options.limit || 10;
 
 var columnTitles = [
   "Heure GMT (TU)",
@@ -40,29 +44,21 @@ var columnTitles = [
   "Ozone (O3)"
 ];
 
-// transpose array
+// transpose array - http://stackoverflow.com/questions/17428587/transposing-a-2d-array-in-javascript
 function transpose(a) {
     return Object.keys(a[0]).map(
         function (c) { return a.map(function (r) { return r[c]; }); }
     );
 }
 
-// add a day to date
-// http://stackoverflow.com/questions/4413590/javascript-get-array-of-dates-between-2-dates
-Date.prototype.addDays = function(days) {
-    var dat = new Date(this.valueOf())
-    dat.setDate(dat.getDate() + days);
-    return dat;
-}
-
+// sub a day to date - http://stackoverflow.com/questions/4413590/javascript-get-array-of-dates-between-2-dates
 Date.prototype.subDays = function(days) {
     var dat = new Date(this.valueOf())
     dat.setDate(dat.getDate() - days);
     return dat;
 }
 
-// Fr slashed date  render
-// http://stackoverflow.com/questions/3066586/get-string-in-yyyymmdd-format-from-js-date-object
+// fr slashed date  render - http://stackoverflow.com/questions/3066586/get-string-in-yyyymmdd-format-from-js-date-object
 Date.prototype.ddmmyyyySlashed = function() {
    var yyyy = this.getFullYear().toString();
    var mm = (this.getMonth()+1).toString(); // getMonth() is zero-based
@@ -70,39 +66,7 @@ Date.prototype.ddmmyyyySlashed = function() {
    return (dd[1]?dd:"0"+dd[0]) + '/' + (mm[1]?mm:"0"+mm[0]) + '/' + yyyy; // padding
 }
 
-
-function getDatedUrls(startDate, stopDate) {
-    var urlArray = new Array();
-    var currentDate = startDate;
-    while (currentDate <= stopDate) {
-        var curr_day = currentDate.getDate();
-        if(currentDate.getDate() < 10){
-        curr_day = "0" + curr_day;
-      }
-      var curr_month = currentDate.getMonth() + 1;
-      if(curr_month < 10){
-        curr_month = "0" + (curr_month);
-      }
-      var curr_year = currentDate.getFullYear();
-      var curr_date = curr_day + "%2F" + curr_month + "%2F" + curr_year;
-      current_url = url.replace(/#date#/, curr_date );
-      urlArray.push( current_url );
-        currentDate = currentDate.addDays(1);
-    }
-    return urlArray;
-}
-
-
-function formatLinks(links) {
-    if (!links instanceof Array) {
-        links = [links];
-    }
-    // backward compatibility requires old format.
-    var serialized = stream ? serializeLinks(links) : JSON.stringify(links);
-    casper.echo(serialized);
-}
-
-// Retrieve data's title per column from current page
+// retrieve data's titles per column from current page
 function getTableTitles() {
     var row = [];
     ths = document.querySelectorAll("table.table-mesures-par-station thead tr th");
@@ -112,7 +76,7 @@ function getTableTitles() {
     return row;
 }
 
-// Retrieve data per column from current page
+// retrieve data per column from current page
 function getTableData() {
     var data = [];
     trs = document.querySelectorAll("table.table-mesures-par-station tbody tr");
@@ -133,47 +97,43 @@ var processPage = function() {
     var waitTime = wait + (Math.random() * 3);
     this.echo('Will wait for ' + Math.floor(waitTime))
         .wait(waitTime * 1000);
-    
-    // capturing current page
-    this.echo('Page title is: ' + this.evaluate(function() {
-        return document.title;
-    }), 'INFO');
-    this.echo('Page url is: ' + this.getCurrentUrl(), 'INFO');
+    //this.echo('Page url is: ' + this.getCurrentUrl(), 'INFO');
     this.echo('title: ' + JSON.stringify(this.evaluate(getTableTitles)), 'INFO');
-    this.echo('data: ' + JSON.stringify(this.evaluate(getTableData)), 'INFO');
+    this.echo('data: ' + JSON.stringify(transpose(this.evaluate(getTableData))), 'INFO');
     
     url = this.getCurrentUrl();
 
-    if (!this.exists('<h1>Mesures automatiques par station</h1>')) {
-            
-            // fill form
-            this.fill('form[action="/fr/mesures/mesures-automatiques-par-station"]', {
-                'mesauv_station': "014",
-                'mesauv_date[date]': "16/03/2015"
-            }, false);
-            // submit search
-            this.thenClick('#edit-moteur-submit')
-            // wait url changes
-            .then(function() {
-                this.waitFor(function() {
-                    return url !== this.getCurrentUrl();
-                }, processPage);//, terminate);
-            });
+    // don't go too far down the rabbit hole
+    if (currentPage >= limit || this.exists('<h1>Mesures automatiques par station</h1>')) {
+      return terminate.call(casper);
     }
+    
+    currentPage++;
+
+    currentDay = currentDay.subDays(1);
+    this.then(getPage);
     
 };
 
+// get next page to crawl
+var getPage = function() {
+  this.fill('form[action="/fr/mesures/mesures-automatiques-par-station"]', {
+    mesauv_station: "014",
+    'mesauv_date[date]': currentDay.ddmmyyyySlashed()
+  }, false);
 
-var url = "http://www.atmoauvergne.asso.fr/fr/mesures/mesures-automatiques-par-station";
+  this.thenClick('#edit-moteur-submit');
 
-casper.start(url, function() {
-    this.fill('form[action="/fr/mesures/mesures-automatiques-par-station"]', {
-        mesauv_station: "014",
-        'mesauv_date[date]': "17/03/2015"
-    }, false);
-});
-casper.thenClick('#edit-moteur-submit');
+  this.waitForSelector('.mesures-auvergne-resultats', processPage); //, terminate);
+};
 
-casper.waitForSelector('.mesures-auvergne-resultats', processPage); //, terminate);
+// write links to the output if not streamed.
+function terminate(err){
+    this.echo("that's all folks!");
+}
+
+
+// let's start
+casper.start(url, getPage);
 
 casper.run();
