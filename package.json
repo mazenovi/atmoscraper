@@ -1,0 +1,34 @@
+{
+  "name": "atmoscraper",
+  "version": "0.0.0",
+  "description": "Return data from atmo station formated in JSON or CSV.",
+  "main": "src/server/index.js",
+  "repository": "",
+  "author": "",
+  "dependencies": {
+    "async": "~0.2.8",
+    "express": "4.*",
+    "socket.io": "1.*",
+    "casperjs": "^1.1.0-beta3",
+    "phantomjs": "^1.9.7-12",
+    "body-parser": "^1.4.3",
+    "method-override": "^2.0.2",
+    "swig": "^1.4.1",
+    "express-session": "^1.6.4",
+    "mocha": "^1.20.1",
+    "serve-static": "^1.3.1",
+    "forever": "^0.11.1",
+    "cookie": "^0.1.2",
+    "mkdirp": "^0.5.0",
+    "debug": "^1.0.4"
+  },
+  "devDependencies": {
+    "nodemon": "^1.2.1"
+  },
+  "scripts": {
+    "install": "mkdir -p client/download",
+    "start": "forever src/server/index.js",
+    "dev": "nodemon src/server/index.js",
+    "test": "mocha tests"
+  }
+}

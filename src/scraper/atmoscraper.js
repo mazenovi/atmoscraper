@@ -6,7 +6,7 @@
  *
  * Usage:
  *
- * $ casperjs atmoscraper.js 014 --stream --format=csv
+ * $ bin/atmoscraper 014 --stream --format=csv
  *
  * (all arguments will be used as the query)
  */
