@@ -45,17 +45,17 @@
     </head>
     <body>
         <div id="l-wrapper">
-            <h1>Google results</h1>
+            <h1>Atmoscraping</h1>
             <div id="l-right">
                 <div id="loading">loading...</div>
                 <div id="downloads"></div>
                 <img id="screenshot" />
             </div>
             <div id="l-center">
-                <p>The easiest way to grab google results.</p>
+                <p>The easiest way to know air you breathe.</p>
                 <form method="POST" action="/" id="search">
                     <p>
-                        <label>Query:</label><input type="text" name="query" tabindex="1" autofocus value="14"/>
+                        <label>Station:</label><input type="text" name="query" tabindex="1" autofocus value="14"/>
                         <input type="submit" value="Submit" disabled/>
                     </p>
                     <fieldset>
@@ -83,13 +83,23 @@
             socket.on('signin', function (data) {
                socketid = data;
             });
+            socket.on('day', function (data) {
+                var results = document.getElementById('results');
+                var str = JSON.parse(data);
+                //results.innerHTML = results.innerHTML + '(' + str + ')</li>';
+            });
+            socket.on('url', function (data) {
+                var results = document.getElementById('results');
+                var str = JSON.parse(data);
+                results.innerHTML = results.innerHTML + '<li><a href="' + str + '">' + str + '</a></li>';
+            });
             socket.on('results', function (data) {
                 var results = document.getElementById('results');
                 var str = JSON.parse(data);
                 str = str.map(function (item) {
-                        return item.title + ' - <a href="' + item.href +'" target="_blank">' + item.href + '</a>';
+                        return item.title + ' --- <a href="' + item.href +'" target="_blank">' + item.href + '</a>';
                     }).join('</li><li>');
-                results.innerHTML = results.innerHTML + '<ul><li>' + str + '</li></ul>';
+                //results.innerHTML = results.innerHTML + '<ul><li>' + str + '</li></ul>';
             });
             socket.on('screenshot', function (data) {
                 var screenshot = JSON.parse(data);
@@ -120,7 +130,7 @@
                                     ' - ' +
                                     '<a href="'+data.json+'" target="_blank">Download JSON</a>' +
                                   '</p>';
-                        downloads.innerHTML = str;
+                        downloads.innerHTML = data;
                     } else {
                         // failure
                     }

@@ -80,8 +80,8 @@ app.get('/', function(req, res, next) {
 });
 app.use('/download', serveStatic(app.get('downloadDir'), {}));
 app.post('/', function (req, res, next) {
-    // define a link store
-    var links = [];
+    // define a results store
+    var results = [];
 
     // Parse arguments.
     var limit = req.body.limit || 10;
@@ -101,6 +101,7 @@ app.post('/', function (req, res, next) {
     var casperresults = path.resolve(path.join(__dirname, '..', '..', 'bin', 'atmoscraper'));
     var args = [
             '--stream',
+            '--limit=1',
             '--format=json'
         ];
     if (screenshot) {
@@ -121,6 +122,7 @@ app.post('/', function (req, res, next) {
             .forEach(function handleCasperMessage(msg) {
                 var message;
                 try {
+                    console.log(msg);
                     message = JSON.parse(msg);
                 } catch (err) {
                     debug('unable to parse data ' + msg);
@@ -132,10 +134,17 @@ app.post('/', function (req, res, next) {
                             url: '/download/' + message.filename
                         }));
                         break;
-                    case 'links':
-                        io.to(socketid).emit('results', JSON.stringify(message.links));
-                        // Add to links store.
-                        links = links.concat(message.links);
+                    case 'day':
+                        io.to(socketid).emit('day', JSON.stringify(message.day));
+                        break;
+                    case 'url':
+                        io.to(socketid).emit('url', JSON.stringify(message.url));
+                        break;
+                    case 'data':
+                        io.to(socketid).emit('results', JSON.stringify(message.data));
+                        // Add to data store.
+                        results = results.concat(message.data);
+                        //data = message.data;
                         break;
                     case 'error':
                         debug('ERROR Casper script returned following error:', JSON.stringify(message));
@@ -149,8 +158,8 @@ app.post('/', function (req, res, next) {
     ls.on('close', function (code) {
         debug('child process exited with code ' + code);
         try {
-            var csv = writeAttachment(app.get('downloadDir'), links, 'csv');
-            var json = writeAttachment(app.get('downloadDir'), links, 'json');
+            var csv = writeAttachment(app.get('downloadDir'), results, 'csv');
+            var json = writeAttachment(app.get('downloadDir'), results, 'json');
         } catch (e) {
             debug(e);
         }
@@ -158,7 +167,7 @@ app.post('/', function (req, res, next) {
         res
             .status(statusCode)
             .send(JSON.stringify({
-                links: links,
+                data: results,
                 csv: '/download/' + csv,
                 json: '/download/' + json
             }));

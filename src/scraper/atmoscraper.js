@@ -140,21 +140,12 @@ function getTableData() {
     return data;
 }
 
-// format crawled data
-function formatData(data) {
-  if (format == 'csv' || format == 'CSV') {
-    var csv = '';
-    [].forEach.call(data, function(line) {
-      csv += line.join(',') + "\n";
-    });
-    return csv;    
-  }
-  return JSON.stringify(data);
+function serializeDate(day) {
+  return JSON.stringify({ type: 'day', day: day.ddmmyyyySlashed() });
 }
 
-// format crawled data
-function formatDate(day) {
-  return JSON.stringify({date: day.ddmmyyyySlashed()});
+function serializeUrl(url) {
+  return JSON.stringify({ type: 'url', url: url });
 }
 
 // standardize crawled data
@@ -170,6 +161,20 @@ function standardizeData(titles, data) {
   return data;
 }
 
+// format crawled data
+function serializeData(data) {
+  if (format == 'csv' || format == 'CSV') {
+    var csv = '';
+    [].forEach.call(data, function(line) {
+      csv += line.join(',') + "\n";
+    });
+    return csv;    
+  }
+  return JSON.stringify({ type: 'data', data: data });
+}
+
+
+
 // handle page crawling
 var processPage = function() {
     // emulate a user looking at results with a random time
@@ -177,7 +182,7 @@ var processPage = function() {
     this//.echo('Will wait for ' + Math.floor(waitTime))
         .wait(waitTime * 1000);
     
-    this.echo(formatDate(currentDay), 'COMMENT');
+    this.echo(serializeDate(currentDay));//, 'COMMENT');
 
     var titles = this.evaluate(getTableTitles); // ??? why evaluate
 
@@ -188,7 +193,7 @@ var processPage = function() {
     data = transpose(data);
 
     if (stream) {
-      this.echo(formatData(data), 'INFO');
+      this.echo(serializeData(data));//, 'INFO');
     }
 
     datas.unshift(data);
@@ -224,7 +229,7 @@ var getPage = function() {
       })
       .waitForSelector('.mesures-auvergne-resultats', processPage); // ??? terminate);
 
-  this.echo(url);
+  this.echo(serializeUrl(url));
 };
 
 // write links to the output if not streamed.
