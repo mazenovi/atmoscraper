@@ -85,7 +85,7 @@ app.post('/', function (req, res, next) {
 
     // Parse arguments.
     var limit = req.body.limit || 10;
-    var search = req.body.query || '';
+    var search = req.body.station || '';
     var wait = typeof req.body.wait === "undefined" ? 1 : req.body.wait;
     var socketid = req.body.socketid;
     var screenshot = req.body.screenshot;
@@ -101,8 +101,7 @@ app.post('/', function (req, res, next) {
     var casperresults = path.resolve(path.join(__dirname, '..', '..', 'bin', 'atmoscraper'));
     var args = [
             '--stream',
-            '--limit=1',
-            '--format=json'
+            '--limit=' + limit
         ];
     if (screenshot) {
         args.push('--screenshot='+app.get('downloadDir'));
@@ -122,7 +121,7 @@ app.post('/', function (req, res, next) {
             .forEach(function handleCasperMessage(msg) {
                 var message;
                 try {
-                    console.log(msg);
+                    //console.log(msg);
                     message = JSON.parse(msg);
                 } catch (err) {
                     debug('unable to parse data ' + msg);
@@ -134,17 +133,10 @@ app.post('/', function (req, res, next) {
                             url: '/download/' + message.filename
                         }));
                         break;
-                    case 'day':
-                        io.to(socketid).emit('day', JSON.stringify(message.day));
-                        break;
-                    case 'url':
-                        io.to(socketid).emit('url', JSON.stringify(message.url));
-                        break;
-                    case 'data':
-                        io.to(socketid).emit('results', JSON.stringify(message.data));
+                    case 'measures':
+                        io.to(socketid).emit('measures', JSON.stringify(message));
                         // Add to data store.
                         results = results.concat(message.data);
-                        //data = message.data;
                         break;
                     case 'error':
                         debug('ERROR Casper script returned following error:', JSON.stringify(message));
@@ -180,26 +172,7 @@ app.use(function(err, req, res, next){
   debug(err.stack);
   res.send(500, 'Something broke!');
 });
-/*
-io.set('authorization', function (handshakeData, accept) {
 
-  if (handshakeData.headers.cookie) {
-
-    handshakeData.cookie = cookie.parse(handshakeData.headers.cookie);
-
-    handshakeData.sessionID = session(handshakeData.cookie['express.sid'], 'secret');
-
-    if (handshakeData.cookie['express.sid'] == handshakeData.sessionID) {
-      return accept('Cookie is invalid.', false);
-    }
-
-  } else {
-    return accept('No cookie transmitted.', false);
-  }
-
-  accept(null, true);
-});
-//*/
 io.on('connection', function(socket){
   console.log('a user connected with session ' + socket.id);
   socket.emit('signin', socket.id);

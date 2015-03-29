@@ -55,13 +55,13 @@
                 <p>The easiest way to know air you breathe.</p>
                 <form method="POST" action="/" id="search">
                     <p>
-                        <label>Station:</label><input type="text" name="query" tabindex="1" autofocus value="14"/>
+                        <label>Station:</label><input type="text" name="station" tabindex="1" autofocus value="14"/>
                         <input type="submit" value="Submit" disabled/>
                     </p>
                     <fieldset>
                         <legend>Options</legend>
-                        <p><label>Nb pages:</label><input type="number" name="limit" value="10" tabindex="2"/></p>
-                        <p><label>Screenshots:</label><input type="checkbox" name="screenshot" value="1" tabindex="3"/></p>
+                        <p><label>Nb pages:</label><input type="number" name="limit" value="3" tabindex="2"/></p>
+                        <p><label>Screenshots:</label><input type="checkbox" name="screenshot" value="1" checked="checked" tabindex="3"/></p>
                         <p><label>Wait </label><input type="number" name="wait" value="1" tabindex="4"/> seconds for search to complete.</p>
                     </fieldset>
                 </form>
@@ -83,23 +83,10 @@
             socket.on('signin', function (data) {
                socketid = data;
             });
-            socket.on('day', function (data) {
+            socket.on('measures', function (data) {
                 var results = document.getElementById('results');
                 var str = JSON.parse(data);
-                //results.innerHTML = results.innerHTML + '(' + str + ')</li>';
-            });
-            socket.on('url', function (data) {
-                var results = document.getElementById('results');
-                var str = JSON.parse(data);
-                results.innerHTML = results.innerHTML + '<li><a href="' + str + '">' + str + '</a></li>';
-            });
-            socket.on('results', function (data) {
-                var results = document.getElementById('results');
-                var str = JSON.parse(data);
-                str = str.map(function (item) {
-                        return item.title + ' --- <a href="' + item.href +'" target="_blank">' + item.href + '</a>';
-                    }).join('</li><li>');
-                //results.innerHTML = results.innerHTML + '<ul><li>' + str + '</li></ul>';
+                results.innerHTML = results.innerHTML + '<ul><li><a href="' + str.url + '">' + str.day + '</a></li></ul>';
             });
             socket.on('screenshot', function (data) {
                 var screenshot = JSON.parse(data);
@@ -107,7 +94,6 @@
                 image.style.display = 'block';
                 image.src = screenshot.url;
             });
-
             function submitForm(form) {
                 var image = document.getElementById('screenshot');
                 image.style.display = 'none';
@@ -148,7 +134,7 @@
 
                 xhr.setRequestHeader("Content-Type", "application/json");
                 xhr.send(JSON.stringify({
-                    query: form.querySelector('input[name=query]').value || 'googleresults',
+                    station: form.querySelector('input[name=station]').value,
                     limit: form.querySelector('input[name=limit]').value || 10,
                     wait: form.querySelector('input[name=wait]').value || 1,
                     screenshot: form.querySelector('input[name=screenshot]').checked,
