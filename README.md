@@ -1,13 +1,8 @@
 # todo
-- virer la fonction stream et l'affichage de la totale en fin de script
-- remove csv format from tmoscraper command
-- plutot que results ou data : mesures
-- one JSON array per page (group url, day, data)
-- enable screenshot
 
-- push each day in results['year'] (or one file per day group at the end)
-- create dataviz
-
+- csv / json format organized by pickup point
+- bootsrap interface
+- create dataviz part
 
 
 # Atmoscraper
@@ -23,7 +18,7 @@ a web scraper to get atmoauvergne's data in cool graphs
 Just run the following
 
 ``` bash
-bin/atmoscraper 16 --limit=5 --stream
+bin/atmosaver 16 --limit=5 --stream
 ```
 
 ## Running the server
