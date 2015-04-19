@@ -33,6 +33,12 @@
             }
             #downloads {
                 display: none;
+                margin: 0 20% 10px 20%;
+                padding: 10px;
+                text-align: center;
+                background-color: #e7e7e7;
+                border-color: #c7c7c7;
+                color: #4f4f4f;
             }
             #screenshot {
                 margin: auto;
@@ -60,7 +66,7 @@
                     </p>
                     <fieldset>
                         <legend>Options</legend>
-                        <p><label>Nb pages:</label><input type="number" name="limit" value="3" tabindex="2"/></p>
+                        <p><label>Nb pages:</label><input type="number" name="limit" value="1" tabindex="2"/></p>
                         <p><label>Screenshots:</label><input type="checkbox" name="screenshot" value="1" checked="checked" tabindex="3"/></p>
                         <p><label>Wait </label><input type="number" name="wait" value="1" tabindex="4"/> seconds for search to complete.</p>
                     </fieldset>
@@ -86,7 +92,10 @@
             socket.on('measures', function (data) {
                 var results = document.getElementById('results');
                 var str = JSON.parse(data);
-                results.innerHTML = results.innerHTML + '<ul><li><a href="' + str.url + '">' + str.day + '</a></li></ul>';
+                var csv = '[<a href="' + str.csv + '">csv</a>]';
+                var json = '[<a href="' + str.json + '">json</a>]';
+                var screenshot = '[<a href="' + str.screenshot + '">screenshot</a>]';
+                results.innerHTML = results.innerHTML + '<ul><li><a href="' + str.url + '">' + str.day + '</a> ' + csv + ' ' +  json + ' ' + screenshot +  '</a></li></ul>';
             });
             socket.on('screenshot', function (data) {
                 var screenshot = JSON.parse(data);
@@ -111,17 +120,10 @@
                         // success
                         // display download links
                         var data = JSON.parse(xhr.responseText);
-                        var str = '<p>' +
-                                    '<a href="'+ data.csv + '" target="_blank">Download csv</a>'+
-                                    ' - ' +
-                                    '<a href="'+data.json+'" target="_blank">Download JSON</a>' +
-                                  '</p>';
-                        downloads.innerHTML = data;
+                        loading.innerHTML = data.message;
                     } else {
                         // failure
                     }
-                    loading.style.display = 'none';
-                    downloads.style.display = 'block';
                 });
                 xhr.addEventListener('error', function () {
                     // something went wrong

@@ -6,7 +6,7 @@
  *
  * Usage:
  *
- * $ bin/atmoscraper 014
+ * $ bin/atmoscraper 014 --stream 
  *
  * (all arguments will be used as the query)
  */
@@ -27,13 +27,35 @@ var wait = 1;
 var currentPage = 1;
 
 var currentDay = new Date();
+
+// sub a day to date - http://stackoverflow.com/questions/4413590/javascript-get-array-of-dates-between-2-dates
+Date.prototype.subDays = function(days) {
+    var dat = new Date(this.valueOf())
+    dat.setDate(dat.getDate() - days);
+    return dat;
+}
+// en slashed date  render - http://stackoverflow.com/questions/3066586/get-string-in-yyyymmdd-format-from-js-date-object
+Date.prototype.yyyymmddSlashed = function() {
+   var yyyy = this.getFullYear().toString();
+   var mm = (this.getMonth()+1).toString(); // getMonth() is zero-based
+   var dd  = this.getDate().toString();
+   return yyyy + '/' + (mm[1]?mm:"0"+mm[0]) + '/' + (dd[1]?dd:"0"+dd[0]); // padding
+}
+// fr slashed date  render - http://stackoverflow.com/questions/3066586/get-string-in-yyyymmdd-format-from-js-date-object
+Date.prototype.ddmmyyyySlashed = function() {
+   var yyyy = this.getFullYear().toString();
+   var mm = (this.getMonth()+1).toString(); // getMonth() is zero-based
+   var dd  = this.getDate().toString();
+   return (dd[1]?dd:"0"+dd[0]) + '/' + (mm[1]?mm:"0"+mm[0]) + '/' + yyyy; // padding
+}
+
 // station
 var station = casper.cli.args.join(" ");
 // options 
 var help = casper.cli.options.about;
 var limit = casper.cli.options.limit || 10;
-var stream = casper.cli.options.stream;
-var screenshot = casper.cli.options.screenshot;
+var start = casper.cli.options.start || new Date().yyyymmddSlashed();
+var startDay = parseDate(start);
 var wait = isNumber(casper.cli.options.wait) ? casper.cli.options.wait : 1;
 
 var columnTitles = [
@@ -58,10 +80,6 @@ casper.on('error', function (err) {
     casper.exit(1);
 });
 
-function isNumber(n) {
-    return !isNaN(parseFloat(n)) && isFinite(n);
-}
-
 function usage() {
     casper
         .echo("Return data from selected atmo station formated in JSON.")
@@ -73,54 +91,22 @@ function usage() {
         .echo("  Options:")
         .echo("    --about                   show this help.")
         .echo("    --limit=LIMIT             crawl LIMIT atmo auvergne pages (default 10).")
-        .echo("    --stream        return results when available. This writes formated results as soon as it is extracted.")
-        .echo("    --screenshot    directory where to store screenshots")
-        .echo("    --wait                    time to wait before parsing google results.")
+        .echo("    --start=DATE              crawl from DATE (yyyy/mm/dd) atmo auvergne pages (default is current day).")
+        .echo("    --wait                    time to wait before parsing atmo auvergne pages.")
         .echo("")
         .exit(1)
     ;
 }
 
-// sub a day to date - http://stackoverflow.com/questions/4413590/javascript-get-array-of-dates-between-2-dates
-Date.prototype.subDays = function(days) {
-    var dat = new Date(this.valueOf())
-    dat.setDate(dat.getDate() - days);
-    return dat;
-}
-// fr slashed date  render - http://stackoverflow.com/questions/3066586/get-string-in-yyyymmdd-format-from-js-date-object
-Date.prototype.ddmmyyyySlashed = function() {
-   var yyyy = this.getFullYear().toString();
-   var mm = (this.getMonth()+1).toString(); // getMonth() is zero-based
-   var dd  = this.getDate().toString();
-   return (dd[1]?dd:"0"+dd[0]) + '/' + (mm[1]?mm:"0"+mm[0]) + '/' + yyyy; // padding
-}
-// en slashed date  render - http://stackoverflow.com/questions/3066586/get-string-in-yyyymmdd-format-from-js-date-object
-Date.prototype.yyyymmddSlashed = function() {
-   var yyyy = this.getFullYear().toString();
-   var mm = (this.getMonth()+1).toString(); // getMonth() is zero-based
-   var dd  = this.getDate().toString();
-   return yyyy + '/' + (mm[1]?mm:"0"+mm[0]) + '/' + (dd[1]?dd:"0"+dd[0]); // padding
+function isNumber(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
-function serializeScreenshot(filename) {
-    return JSON.stringify({type: 'screenshot', filename: filename});
-}
-function formatScreenshot(filename) {
-    return casper.echo(serializeScreenshot(filename));
-}
-function takeScreenshot() {
-    var screenshotFile = (+new Date()).toString(36) + '.png';
-
-    casper
-        .capture(screenshot + '/' + screenshotFile)
-        .then(function () {
-            // send screenshot
-            if (stream) {
-                formatScreenshot(screenshotFile);
-            }
-        });
-
-    return casper;
+// parse a string date like yyy/mm/dd return a Date object
+function parseDate(input) {
+    var parts = input.split('/');
+    // new Date(year, month, day)
+    return new Date(parts[0], parts[1]-1, parts[2]); // Note: months are 0-based
 }
 
 // retrieve data's titles per column from current page
@@ -140,9 +126,14 @@ function getTableMeasures() {
     // ??? may I trs.forEach( function(tr) {
         var row = [];
         tds = tr.getElementsByTagName('td');
-        [].forEach.call(tds, function(td) {
-            // replace empty cell by ??
-            row.push(td.textContent); 
+        [].forEach.call(tds, function(td, k) {
+            if(k==0) {
+              row.push(" + " +  td.textContent); 
+            }
+            else {
+              // replace empty cell by ??
+              row.push(td.textContent); 
+            }
         });
         measures.push(row);
     });   
@@ -157,7 +148,7 @@ function transpose(a) {
 // standardize crawled mesures
 function standardizeMeasures(titles, measures) {
   measures[0].forEach(function(e) {
-    e = currentDay.yyyymmddSlashed() + " " + e;
+    e = startDay.yyyymmddSlashed() + " " + e;
   });
   columnTitles.forEach(function(title, index) {
     if (titles.indexOf(title) == -1) {
@@ -182,16 +173,13 @@ var processPage = function() {
 
     measures = transpose(measures);
 
-    if (screenshot) {
-      takeScreenshot();
-    }
+    screenshotPath = 'screenshots/' + startDay.yyyymmddSlashed() + '.png';
     
-    JSONifyMeasures = { type: 'measures', day: currentDay.ddmmyyyySlashed(), url: url, data: measures };
+    this.capture(screenshotPath);
+    
+    JSONifyMeasures = { type: 'measures', day: startDay.yyyymmddSlashed(), url: url, data: measures, screenshot: screenshotPath };
 
-    if (stream) {
-
-      this.echo(JSON.stringify(JSONifyMeasures));//, 'INFO');
-    }
+    this.echo(JSON.stringify(JSONifyMeasures));//, 'INFO');
 
     allMeasures = allMeasures.concat([JSONifyMeasures]);
 
@@ -202,7 +190,7 @@ var processPage = function() {
     
     currentPage++;
 
-    currentDay = currentDay.subDays(1);
+    startDay = startDay.subDays(1);
 
     this.then(getPage);
     
@@ -212,7 +200,7 @@ var processPage = function() {
 var getPage = function() {
   this.fill('form[action="/fr/mesures/mesures-automatiques-par-station"]', {
     mesauv_station: "0" + station,
-    'mesauv_date[date]': currentDay.ddmmyyyySlashed()
+    'mesauv_date[date]': startDay.ddmmyyyySlashed()
   }, false);
 
   url = this.getCurrentUrl();
@@ -224,23 +212,11 @@ var getPage = function() {
           return url !== this.getCurrentUrl();
         });
       })
-      .waitForSelector('.mesures-auvergne-resultats', processPage); // ??? terminate);
+      .waitForSelector('.mesures-auvergne-resultats', processPage );
 
 };
 
-// write links to the output if not streamed.
-function terminate(err){
-  if (screenshot) {
-    takeScreenshot();
-  }
-  this.then(function () {
-    if (!stream) {
-      this.echo(JSON.stringify(allMeasures));
-    }
-  });
-}
-
-// let's start
+// let's startDay
 casper.start(url, getPage);
 
 casper.run();

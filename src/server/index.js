@@ -69,6 +69,16 @@ var SITE_SECRET = 'I am not wearing any pants';
     if (!fs.existsSync(app.get('downloadDir'))) {
         mkdirp(app.get('downloadDir'));
     }
+
+    app.set('screenshotsDir', path.resolve(path.join(__dirname, '..','..','screenshots')));
+    if (!fs.existsSync(app.get('screenshotsDir'))) {
+        mkdirp(app.get('screenshotsDir'));
+    }
+
+    app.set('csvDir', path.resolve(path.join(__dirname, '..','..','csv')));
+    if (!fs.existsSync(app.get('csvDir'))) {
+        mkdirp(app.get('csvDir'));
+    }
 })();
 
 //
@@ -79,6 +89,9 @@ app.get('/', function(req, res, next) {
     res.render('index');
 });
 app.use('/download', serveStatic(app.get('downloadDir'), {}));
+app.use('/screenshots', serveStatic(app.get('screenshotsDir'), {}));
+app.use('/csv', serveStatic(app.get('csvDir'), {}));
+
 app.post('/', function (req, res, next) {
     // define a results store
     var results = [];
@@ -98,9 +111,8 @@ app.post('/', function (req, res, next) {
     }
 
     // lanch casper cli
-    var casperresults = path.resolve(path.join(__dirname, '..', '..', 'bin', 'atmoscraper'));
+    var casperresults = path.resolve(path.join(__dirname, '..', '..', 'bin', 'atmosaver'));
     var args = [
-            '--stream',
             '--limit=' + limit
         ];
     if (screenshot) {
@@ -121,12 +133,13 @@ app.post('/', function (req, res, next) {
             .forEach(function handleCasperMessage(msg) {
                 var message;
                 try {
-                    //console.log(msg);
+                    console.log(msg);
                     message = JSON.parse(msg);
                 } catch (err) {
                     debug('unable to parse data ' + msg);
                     debug(err);
                 }
+                
                 switch(message.type) {
                     case 'screenshot':
                         io.to(socketid).emit('screenshot', JSON.stringify({
@@ -134,35 +147,31 @@ app.post('/', function (req, res, next) {
                         }));
                         break;
                     case 'measures':
+                        year = message.day.substring(message.day.length -4, message.day.length);
+                        console.log(JSON.stringify(message));
+
+                        io.to(socketid).emit('screenshot', JSON.stringify({
+                            url: message.screenshot
+                        }));
+
                         io.to(socketid).emit('measures', JSON.stringify(message));
-                        // Add to data store.
-                        results = results.concat(message.data);
+
                         break;
                     case 'error':
                         debug('ERROR Casper script returned following error:', JSON.stringify(message));
                         break;
                 }
+
         });
     });
     ls.stderr.on('data', function (data) {
         debug('stderr: ' + data);
     });
     ls.on('close', function (code) {
-        debug('child process exited with code ' + code);
-        try {
-            var csv = writeAttachment(app.get('downloadDir'), results, 'csv');
-            var json = writeAttachment(app.get('downloadDir'), results, 'json');
-        } catch (e) {
-            debug(e);
-        }
         var statusCode = code == 0 ? 200 : 500;
         res
             .status(statusCode)
-            .send(JSON.stringify({
-                data: results,
-                csv: '/download/' + csv,
-                json: '/download/' + json
-            }));
+            .send(JSON.stringify({ message: "finish"}));
     });
 
 });
