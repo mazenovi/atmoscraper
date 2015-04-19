@@ -4,7 +4,6 @@
 - bootsrap interface
 - create dataviz part
 
-
 # Atmoscraper
 a web scraper to get atmoauvergne's data in cool graphs
 
